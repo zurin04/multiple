@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Variables
+DOWNLOAD_URL="https://cdn.app.multiple.cc/client/linux/x64/multipleforlinux.tar"
+INSTALL_DIR="/root/multipleforlinux"
+LOG_FILE="$INSTALL_DIR/output.log"
+
+# User inputs for bind command
+IDENTIFIER="W83919WW"
+PIN="248635"
+STORAGE="200"
+BANDWIDTH_DOWNLOAD="100"
+BANDWIDTH_UPLOAD="100"
+
+# Functions
+echo "Starting installation of Multiple for Linux..."
+
+# Download the tar file
+echo "Downloading files..."
+wget $DOWNLOAD_URL -O multipleforlinux.tar || { echo "Download failed!"; exit 1; }
+
+# Extract the tar file
+echo "Extracting files..."
+tar -xvf multipleforlinux.tar || { echo "Extraction failed!"; exit 1; }
+
+# Navigate to the extracted directory
+cd multipleforlinux || { echo "Directory not found!"; exit 1; }
+
+# Set permissions
+echo "Setting permissions..."
+chmod +x ./multiple-cli ./multiple-node || { echo "Failed to set permissions!"; exit 1; }
+
+# Add to PATH
+echo "Adding to PATH..."
+export PATH=$PATH:$INSTALL_DIR
+echo "PATH=$PATH" >> /etc/profile
+source /etc/profile
+
+# Set directory permissions
+chmod -R 777 $INSTALL_DIR || { echo "Failed to set directory permissions!"; exit 1; }
+
+# Start the node
+echo "Starting the node in the background..."
+nohup ./multiple-node > $LOG_FILE 2>&1 &
+
+# Bind configuration
+echo "Configuring node with identifier and parameters..."
+./multiple-cli bind \
+  --bandwidth-download $BANDWIDTH_DOWNLOAD \
+  --identifier $IDENTIFIER \
+  --pin $PIN \
+  --storage $STORAGE \
+  --bandwidth-upload $BANDWIDTH_UPLOAD || { echo "Bind configuration failed!"; exit 1; }
+
+# Display logs
+echo "Displaying log output..."
+tail -f $LOG_FILE &
+LOG_PID=$!
+
+# Check version
+echo "Checking installation version..."
+./multiple-cli --version || { echo "Version check failed!"; kill $LOG_PID; exit 1; }
+
+echo "Installation and setup completed successfully!"
+kill $LOG_PID
